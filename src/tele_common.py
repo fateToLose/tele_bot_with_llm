@@ -5,8 +5,14 @@ from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
+from src.utils import count_token, count_pricing
 from src.models import AllModels
-from config import MODEL_CHOICES
+from src.database import UserManager
+from config import (
+    QUERY_PATH,
+    DB_MASTER_FPATH,
+    MODEL_CHOICES,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +26,9 @@ api_keys: dict[str, str | None] = {
     "ChatGPT": os.getenv("GPT_API_KEY"),
 }
 
-user_models = {}
+db_users = {}
 llm_models = AllModels(api_keys, MODEL_CHOICES)
+user_manager = UserManager(DB_MASTER_FPATH, QUERY_PATH)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -110,17 +117,34 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
     user_id = update.effective_user.id
     message_text = update.message.text
 
-    if user_id not in user_models:
+    user_info = user_manager.register_user(
+        user_id=user_id,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+    )
+
+    bool_valid, status = user_manager.validate_user(user_id)
+
+    if not bool_valid:
+        await update.message.reply_text(
+            "⚠️ You've reached your free message limit.\n\n"
+            "To continue using the bot, please upgrade to a premium account.",
+        )
+        return None
+
+    if user_id not in db_users:
         await update.message.reply_text(
             "Please select an AI model first before sending messages.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Select Model", callback_data="back_to_main")]]),
         )
-        return
+        return None
 
-    model_info = user_models[user_id]
+    model_info = db_users[user_id]
     provider = model_info["provider"]
     model_id = model_info["model_id"]
 
@@ -129,4 +153,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     response_text = await llm_models.query_model(provider, model_id, message_text)
 
-    await update.message.reply_text(response_text)
+    input_tokens = count_token(message_text)
+    output_tokens = count_token(response_text)
+    msg_cost = count_pricing(model_id, input_tokens, output_tokens)
+
+    user_manager.record_msg(
+        user_id=user_id,
+        provider=provider.lower(),
+        model_id=model_id.lower(),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        query_cost=msg_cost,
+    )
+
+    if status.startswith("free:"):
+        remaining: str = status.split(":")[-1]
+        msg_footnote = f"\n\n\n[📊 **{remaining}** free queries remaining]"
+        response_text += msg_footnote
+
+    response_batch = [response_text[i : i + 4096] for i in range(0, len(response_text), 4096)]
+    for msg in response_batch:
+        await update.message.reply_text(text=msg)

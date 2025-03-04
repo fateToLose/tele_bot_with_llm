@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
-from src.tele_bot import start, help_command, menu_command, button_callback, handle_message
+from src.tele_common import start, help_command, menu_command, button_callback, handle_message
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,6 +19,7 @@ def start_bot() -> None:
     TELE_TOKEN: str | None = os.getenv("TELE_API_KEY")
     if not TELE_TOKEN:
         logger.error("No Telegram API found in env variable.")
+        raise AssertionError("No Telegram Bot API, exiting program.")
 
     application = Application.builder().token(TELE_TOKEN).build()
 
