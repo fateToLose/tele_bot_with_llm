@@ -1,7 +1,9 @@
 # GenAI Telegram Bot
 A single plaform with multiple GenAI models via Telegram bot. Allowing user to utilise different models and version in single platform.
 
-This repo is a personal project to build up to expand knowledge with API and LLM.
+This repo is a personal project to build up to expand knowledge with API and LLM.   
+
+*Have fun and continue building.*
 
 ## Features
 - Allow user to select the multiple models and version. [User can change or add more by editing the configuration]
@@ -10,9 +12,10 @@ This repo is a personal project to build up to expand knowledge with API and LLM
     - ChatGPT (o4 & o4-mini)
 
 ##  WIP
-- Admin Menu to allow for user tracking, API usage statistic and cost
-- Develop database to store statistic
-
+- [&check;] Add databases
+- [&cross;] Admin menu to allow for statistc (users, API cost, access control, etc)
+- [&cross;] Websearch function via GoogleSearch API
+- [&cross;] Further enhancement
 
 ## Setup
 - Create .env file and store the your LLM & Telegram API key
