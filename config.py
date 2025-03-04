@@ -2,15 +2,28 @@ import os
 
 # Directory #
 BASE_PATH: str = os.getcwd()
+LOG_PATH = os.path.join(BASE_PATH, "logs")
+DB_PATH = os.path.join(BASE_PATH, "data")
+QUERY_PATH = os.path.join(BASE_PATH, "query")
+
+DB_MASTER_FPATH = os.path.join(DB_PATH, "master.db")
+
 
 # Model Configuration
 MAX_TOKENS = 2048
 
+
 # LLM Models
-MODEL_CHOICES: dict[str, list[dict[str, str]]] = {
+MODEL_CHOICES: dict[str, list[dict[str, str | float]]] = {
     "Claude": [
-        {"name": "Claude 3.7 (Sonnet)", "id": "claude-3-7-sonnet-20250219"},
-        {"name": "Claude 3.5 (Haiku)", "id": "claude-3-5-haiku-20241022"},
+        {
+            "name": "Claude 3.7 (Sonnet)",
+            "id": "claude-3-7-sonnet-20250219",
+        },
+        {
+            "name": "Claude 3.5 (Haiku)",
+            "id": "claude-3-5-haiku-20241022",
+        },
     ],
     "Deepseek": [
         {
@@ -27,6 +40,37 @@ MODEL_CHOICES: dict[str, list[dict[str, str]]] = {
             "name": "GPT-4o",
             "id": "gpt-4o",
         },
-        {"name": "GPT-4o-mini", "id": "gpt-4o-mini"},
+        {
+            "name": "GPT-4o-mini",
+            "id": "gpt-4o-mini",
+        },
     ],
+}
+
+
+MODEL_PRICING: dict[str, dict[str, float]] = {
+    "claude-3-7-sonnet-20250219": {
+        "input_cost": 0.000003,
+        "output_cost": 0.000015,
+    },
+    "claude-3-5-haiku-20241022": {
+        "input_cost": 0.0000008,
+        "output_cost": 0.000004,
+    },
+    "deepseek-reasoner": {
+        "input_cost": 0.00000014,
+        "output_cost": 0.00000219,
+    },
+    "deepseek-chat": {
+        "input_cost": 0.00000007,
+        "output_cost": 0.0000011,
+    },
+    "gpt-4o": {
+        "input_cost": 0.0000025,
+        "output_cost": 0.00001,
+    },
+    "gpt-4o-mini": {
+        "input_cost": 0.00000015,
+        "output_cost": 0.0000006,
+    },
 }
