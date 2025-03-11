@@ -14,7 +14,7 @@ MAX_TOKENS = 2048
 
 
 # LLM Models
-MODEL_CHOICES: dict[str, list[dict[str, str | float]]] = {
+MODEL_CHOICES: dict = {
     "Claude": [
         {
             "name": "Claude 3.7 (Sonnet)",
