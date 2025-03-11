@@ -13,7 +13,7 @@ This repo is a personal project to build up to expand knowledge with API and LLM
 
 ##  WIP
 - [&check;] Add databases
-- [&cross;] Admin menu to allow for statistc (users, API cost, access control, etc)
+- [&check;] Admin menu to allow for statistc (users, API cost, access control, etc)
 - [&cross;] Websearch function via GoogleSearch API
 - [&cross;] Further enhancement
 
