@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS provider_stats (
 );
 
 -- Initialize the providers
-INSERT OR IGNORE INTO provider_stats (provider, total_messages, total_input_tokens, total_output_tokens, total_cost)
+INSERT OR IGNORE INTO provider_stats (provider, total_messages, total_input_tokens, total_output_tokens, total_tokens, total_cost)
 VALUES 
-    ('claude', 0, 0, 0, 0.0),
-    ('deepseek', 0, 0, 0, 0.0),
-    ('gpt', 0, 0, 0, 0.0);
+    ('claude', 0, 0, 0, 0, 0.0),
+    ('deepseek', 0, 0, 0, 0, 0.0),
+    ('chatgpt', 0, 0, 0, 0, 0.0);
