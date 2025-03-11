@@ -7,11 +7,10 @@ from telegram.ext import ContextTypes
 
 from src.utils import count_token, count_pricing
 from src.models import AllModels
-from src.database import UserManager
+from src.database import get_user_mgr
 from config import (
-    QUERY_PATH,
-    DB_MASTER_FPATH,
     MODEL_CHOICES,
+    MODEL_PRICING,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,12 +27,12 @@ api_keys: dict[str, str | None] = {
 
 db_users = {}
 llm_models = AllModels(api_keys, MODEL_CHOICES)
-user_manager = UserManager(DB_MASTER_FPATH, QUERY_PATH)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
+
     await update.message.reply_text(
         f"Hi {user.first_name}! I am Ken's personal AI Assisant. Please select which AI model would you like to chat with."
     )
@@ -79,7 +78,7 @@ async def show_model_selection_menu(update: Update, context: ContextTypes.DEFAUL
         await query.edit_message_text("Models - Select your model:", reply_markup=reply_markup)
 
 
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def common_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()  # Answer the callback query
 
@@ -112,7 +111,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"You have selected: {provider}\n\n"
             f"Using model: {model_id}\n\n"
             "You can now start chatting with this model. Simply send a message!\n\n"
-            "Use /change_model to select a different AI model at any time."
+            "Type /change_model to select a different AI model at any time."
         )
 
 
@@ -121,19 +120,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user_id = update.effective_user.id
     message_text = update.message.text
 
-    user_info = user_manager.register_user(
+    user_mgr = get_user_mgr()
+
+    user_info = user_mgr.register_user(
         user_id=user_id,
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
     )
 
-    bool_valid, status = user_manager.validate_user(user_id)
+    bool_valid, status = user_mgr.validate_user(user_id)
 
     if not bool_valid:
         await update.message.reply_text(
-            "⚠️ You've reached your free message limit.\n\n"
-            "To continue using the bot, please upgrade to a premium account.",
+            "⚠️ You've reached your free message limit.\n\nTo continue using the bot, please contact @Kennnnnnnn",
         )
         return None
 
@@ -150,14 +150,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     await update.message.reply_text("Thinking...")
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     response_text = await llm_models.query_model(provider, model_id, message_text)
 
     input_tokens = count_token(message_text)
     output_tokens = count_token(response_text)
-    msg_cost = count_pricing(model_id, input_tokens, output_tokens)
+    msg_cost = count_pricing(MODEL_PRICING, model_id, input_tokens, output_tokens)
 
-    user_manager.record_msg(
+    user_mgr.record_msg(
         user_id=user_id,
         provider=provider.lower(),
         model_id=model_id.lower(),
