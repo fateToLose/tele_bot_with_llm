@@ -8,20 +8,20 @@ logger = logging.getLogger(__name__)
 
 
 class BaseModelLLM(ABC):
-    def __init__(self, api_key: str | None, model_id: str, model_name: str) -> None:
+    def __init__(self, api_key: str, model_id: str, model_name: str) -> None:
         self.api_key = api_key
         self.model_id = model_id
         self.model_name = model_name
 
-    async def query(self, message: str | None) -> None:
+    async def query(self, message: str) -> str | None:
         raise NotImplementedError("Every model should have their own query functions")
 
 
 class ClaudeModel(BaseModelLLM):
-    def __init__(self, api_key: str | None, model_id: str, model_name: str) -> None:
+    def __init__(self, api_key: str, model_id: str, model_name: str) -> None:
         super().__init__(api_key, model_id, model_name)
 
-    async def query(self, message: str | None) -> str:
+    async def query(self, message: str) -> str | None:
         try:
             headers = {
                 "x-api-key": self.api_key,
@@ -45,10 +45,10 @@ class ClaudeModel(BaseModelLLM):
 
 
 class DeepseekModel(BaseModelLLM):
-    def __init__(self, api_key: str | None, model_id: str, model_name: str) -> None:
+    def __init__(self, api_key: str, model_id: str, model_name: str) -> None:
         super().__init__(api_key, model_id, model_name)
 
-    async def query(self, message: str | None) -> str:
+    async def query(self, message: str) -> str | None:
         try:
             headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
@@ -68,10 +68,10 @@ class DeepseekModel(BaseModelLLM):
 
 
 class ChatGPTModel(BaseModelLLM):
-    def __init__(self, api_key: str | None, model_id: str, model_name: str) -> None:
+    def __init__(self, api_key: str, model_id: str, model_name: str) -> None:
         super().__init__(api_key, model_id, model_name)
 
-    async def query(self, message: str | None) -> str:
+    async def query(self, message: str) -> str | None:
         try:
             headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
@@ -87,12 +87,12 @@ class ChatGPTModel(BaseModelLLM):
             return response_json["choices"][0]["message"]["content"]
         except Exception as e:
             logging.error(f"Error querying OpenAI API: {e}")
-        return f"Error communicating with ChatGPT: {str(e)}"
+            return f"Error communicating with ChatGPT: {str(e)}"
 
 
 class AllModels:
-    def __init__(self, api_keys: dict[str, str | None], given_models: dict[str, list[dict[str, str]]]) -> None:
-        self.api_keys: dict[str, str | None] = api_keys
+    def __init__(self, api_keys: dict[str, str], given_models: dict[str, list[dict[str, str]]]) -> None:
+        self.api_keys: dict[str, str] = api_keys
         self.given_models: dict[str, list[dict[str, str]]] = given_models
         self.reg_models: dict[str, BaseModelLLM] = {}
 
@@ -132,7 +132,7 @@ class AllModels:
         model_key = f"{provider}_{model_id}"
         return self.reg_models.get(model_key)
 
-    async def query_model(self, provider: str, model_id: str, message: str) -> str:
+    async def query_model(self, provider: str, model_id: str, message: str) -> str | None:
         model = self.get_model(provider, model_id)
         if model:
             return await model.query(message)
