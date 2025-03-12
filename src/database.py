@@ -10,10 +10,14 @@ user_mgr = None
 
 class UserManager:
     def __init__(self, db_path: str, query_path: str) -> None:
-        self.db_path = db_path
-        self.query_path = query_path
+        self.db_path: str = db_path
+        self.query_path: str = query_path
+        self.ini_sql_file: str = "init_db.sql"
+        self.common_sql_file: str = "common.sql"
+        self.queries: dict[str, str] = {}
 
         self._check_db()
+        self._store_queries()
 
     def _connect_db(self):
         conn = sqlite3.connect(self.db_path)
@@ -22,7 +26,7 @@ class UserManager:
 
     def _check_db(self):
         conn = self._connect_db()
-        init_query_path = os.path.join(self.query_path, "init_db.sql")
+        init_query_path = os.path.join(self.query_path, self.ini_sql_file)
 
         with open(init_query_path, "r") as file:
             query = file.read()
@@ -35,6 +39,19 @@ class UserManager:
         finally:
             conn.close()
 
+    def _store_queries(self) -> None:
+        fpath = os.path.join(self.query_path, self.common_sql_file)
+        with open(fpath, "r") as file:
+            content = file.read()
+
+        query_blocks = content.split("-- name:")
+        for block in query_blocks[1:]:
+            lines = block.strip().split("\n")
+            current_name = lines[0].strip()
+            query = "\n".join(lines[1:])
+
+            self.queries[current_name] = query
+
     def register_user(
         self, user_id: int, username: str | None = None, first_name: str | None = None, last_name: str | None = None
     ):
@@ -42,32 +59,19 @@ class UserManager:
 
         try:
             user = conn.execute(
-                """
-                SELECT * FROM users WHERE user_id = ?
-                """,
+                self.queries["find_user"],
                 (user_id,),
             ).fetchone()
 
             if user:
                 conn.execute(
-                    """
-                    UPDATE users SET 
-                        username = COALESCE(?, username),
-                        first_name = COALESCE(?, first_name),
-                        last_name = COALESCE(?, last_name),
-                        last_active_at = CURRENT_TIMESTAMP
-                    WHERE user_id = ?
-                    """,
+                    self.queries["update_existing_user"],
                     (username, first_name, last_name, user_id),
                 )
 
             else:
                 conn.execute(
-                    """
-                    INSERT INTO users 
-                    (user_id, username, first_name, last_name, access_level, remaining_free_queries)
-                    VALUES (?, ?, ?, ?, 'free', 30)
-                    """,
+                    self.queries["add_new_user"],
                     (user_id, username, first_name, last_name),
                 )
             conn.commit()
@@ -84,9 +88,7 @@ class UserManager:
         conn = self._connect_db()
 
         try:
-            user = conn.execute(
-                "SELECT access_level, remaining_free_queries FROM users WHERE user_id = ?", (user_id,)
-            ).fetchone()
+            user = conn.execute(self.queries["validate_user"], (user_id,)).fetchone()
 
             access_level = user["access_level"]
             remaining = user["remaining_free_queries"]
@@ -115,9 +117,7 @@ class UserManager:
         conn = self._connect_db()
 
         try:
-            user = conn.execute(
-                "SELECT access_level, remaining_free_queries FROM users WHERE user_id = ?", (user_id,)
-            ).fetchone()
+            user = conn.execute(self.queries["validate_user"], (user_id,)).fetchone()
 
             if not user:
                 logger.info(f"User {user_id} has no free queries available.")
@@ -127,40 +127,21 @@ class UserManager:
             if user["access_level"] == "free" and user["remaining_free_queries"] > 0:
                 logger.info(f"User {user_id} - {user['access_level']} - Remaining: {user['remaining_free_queries']}")
 
-                conn.execute(
-                    "UPDATE users SET remaining_free_queries = remaining_free_queries - 1 WHERE user_id = ?", (user_id,)
-                )
+                conn.execute(self.queries["minus_free_query"], (user_id,))
 
             conn.execute(
-                """
-                UPDATE users SET 
-                    total_queries = total_queries + 1,
-                    last_active_at = CURRENT_TIMESTAMP
-                WHERE user_id = ?
-                """,
+                self.queries["add_query_count"],
                 (user_id,),
             )
 
             conn.execute(
-                """
-                INSERT INTO messages
-                (user_id, provider, model_id, input_tokens, output_tokens, query_cost)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
+                self.queries["register_msg"],
                 (user_id, provider, model_id, input_tokens, output_tokens, query_cost),
             )
 
             total_tokens = input_tokens + output_tokens
             conn.execute(
-                """
-                UPDATE provider_stats SET
-                    total_messages = total_messages + 1,
-                    total_input_tokens = total_input_tokens + ?,
-                    total_output_tokens = total_output_tokens + ?,
-                    total_tokens = total_tokens + ?,
-                    total_cost = total_cost + ?
-                WHERE provider = ?
-                """,
+                self.queries["update_provider_stats"],
                 (input_tokens, output_tokens, total_tokens, query_cost, provider),
             )
 
@@ -179,8 +160,7 @@ class UserManager:
         conn = self._connect_db()
 
         try:
-            user = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
-
+            user = conn.execute(self.queries["find_user"], (user_id,)).fetchone()
             return dict(user) if user else None
 
         except Exception as e:
@@ -193,22 +173,13 @@ class UserManager:
     def get_user_count(self) -> dict[str, int]:
         conn = self._connect_db()
         try:
-            result = conn.execute(
-                """
-                SELECT 
-                    COUNT(*) as total,
-                    SUM(CASE WHEN access_level = 'free' THEN 1 ELSE 0 END) as free,
-                    SUM(CASE WHEN access_level = 'premium' THEN 1 ELSE 0 END) as premium,
-                    SUM(CASE WHEN access_level = 'admin' THEN 1 ELSE 0 END) as admin
-                FROM users
-                """
-            ).fetchone()
-
+            result = conn.execute(self.queries["get_users_count"]).fetchone()
             return dict(result)
 
         except Exception as e:
             logging.error(f"Error getting user count: {e}")
             return {"total": 0, "free": 0, "premium": 0, "admin": 0}
+
         finally:
             conn.close()
 
@@ -216,11 +187,7 @@ class UserManager:
         conn = self._connect_db()
         try:
             result = conn.execute(
-                """
-                SELECT COUNT(DISTINCT user_id) as count
-                FROM users
-                WHERE last_active_at >= datetime('now', ?)
-                """,
+                self.queries["get_active_users_count"],
                 (f"-{days} days",),
             ).fetchone()
 
@@ -229,43 +196,33 @@ class UserManager:
         except Exception as e:
             logging.error(f"Error getting active users: {e}")
             return 0
+
         finally:
             conn.close()
 
     def get_total_cost(self) -> float:
         conn = self._connect_db()
         try:
-            result = conn.execute(
-                """
-                SELECT SUM(query_cost) as cost
-                FROM messages
-                """
-            ).fetchone()
-
+            result = conn.execute(self.queries["get_total_cost"]).fetchone()
             return result["cost"]
 
         except Exception as e:
             logging.error(f"Error getting total cost: {e}")
             return 0.0
+
         finally:
             conn.close()
 
     def get_provider_stats(self) -> list[dict]:
         conn = self._connect_db()
         try:
-            cursor = conn.execute(
-                """
-                SELECT *
-                FROM provider_stats
-                ORDER BY total_messages DESC
-                """
-            )
-
+            cursor = conn.execute(self.queries["get_provider_stats"])
             return [dict(row) for row in cursor.fetchall()]
 
         except Exception as e:
             logging.error(f"Error getting provider stats: {e}")
             return []
+
         finally:
             conn.close()
 
@@ -273,12 +230,7 @@ class UserManager:
         conn = self._connect_db()
         try:
             cursor = conn.execute(
-                """
-                SELECT *
-                FROM messages
-                WHERE date >= date('now', ?)
-                ORDER BY date DESC
-                """,
+                self.queries["get_daily_stats"],
                 (f"-{days} days",),
             )
             return [dict(row) for row in cursor.fetchall()]
@@ -286,6 +238,7 @@ class UserManager:
         except Exception as e:
             logging.error(f"Error getting daily stats: {e}")
             return []
+
         finally:
             conn.close()
 
@@ -293,23 +246,15 @@ class UserManager:
         conn = self._connect_db()
         try:
             cursor = conn.execute(
-                """
-                SELECT 
-                    user_id, username, first_name, last_name, 
-                    access_level, remaining_free_queries, total_queries,
-                    registered_at, last_active_at
-                FROM users
-                ORDER BY last_active_at DESC
-                LIMIT ?
-                """,
+                self.queries["get_recent_users"],
                 (limit,),
             )
-
             return [dict(row) for row in cursor.fetchall()]
 
         except Exception as e:
             logging.error(f"Error listing users: {e}")
             return []
+
         finally:
             conn.close()
 
@@ -317,24 +262,15 @@ class UserManager:
         conn = self._connect_db()
         try:
             cursor = conn.execute(
-                """
-                SELECT 
-                    user_id, username, first_name, last_name, 
-                    access_level, remaining_free_queries, total_queries,
-                    registered_at, last_active_at
-                FROM users
-                WHERE access_level == 'free'
-                ORDER BY last_active_at DESC
-                LIMIT ?
-                """,
+                self.queries["get_free_users"],
                 (limit,),
             )
-
             return [dict(row) for row in cursor.fetchall()]
 
         except Exception as e:
             logging.error(f"Error listing users: {e}")
             return []
+
         finally:
             conn.close()
 
@@ -345,7 +281,7 @@ class UserManager:
 
         conn = self._connect_db()
         try:
-            conn.execute("UPDATE users SET access_level = ? WHERE user_id = ?", (access_level, user_id))
+            conn.execute(self.queries["admin_change_user_role"], (access_level, user_id))
             conn.commit()
             return True
 
@@ -360,13 +296,15 @@ class UserManager:
     def reset_free_queries(self, user_id: int, count: int = 30) -> bool:
         conn = self._connect_db()
         try:
-            conn.execute("UPDATE users SET remaining_free_queries = ? WHERE user_id = ?", (count, user_id))
+            conn.execute(self.queries["admin_add_credit"], (count, user_id))
             conn.commit()
             return True
+
         except Exception as e:
             logging.error(f"Error resetting free queries for {user_id}: {e}")
             conn.rollback()
             return False
+
         finally:
             conn.close()
 
@@ -382,6 +320,7 @@ def init_user_mgr(db_path: str, query_path: str) -> UserManager | None:
 
         except Exception as e:
             RuntimeError(f"UserManager is not initialised - {e}")
+
     return user_mgr
 
 

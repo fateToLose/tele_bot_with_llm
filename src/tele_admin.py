@@ -1,7 +1,7 @@
 import logging
 
 from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import CallbackQuery, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,
@@ -77,6 +77,7 @@ async def show_usage_statistics(update: Update, context: ContextTypes.DEFAULT_TY
                 f"• {day['date']}: {day['total_messages']} messages\n"
                 f"  Free: {day['free_user_messages']} | "
                 f"Premium: {day['premium_user_messages']} | "
+                f"Admin: {day['admin_user_messages']} | "
                 f"Cost: ${day['total_cost']:.2f}\n"
             )
     else:
@@ -91,7 +92,7 @@ async def show_usage_statistics(update: Update, context: ContextTypes.DEFAULT_TY
             f"• {provider['provider'].capitalize()}: {provider['total_messages']} messages\n"
             f"  Tokens: {provider['total_tokens']:,} | "
             f"Cost: ${provider['total_cost']:.2f} | "
-            f"Avg: ${avg_cost:.4f}/msg\n\n"
+            f"Avg: ${avg_cost:.4f}/msg\n"
         )
 
     # Create back button
@@ -102,7 +103,7 @@ async def show_usage_statistics(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def show_recent_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
+    query: CallbackQuery | None = update.callback_query
 
     user_mgr = get_user_mgr()
     users = user_mgr.list_users(limit=10)
