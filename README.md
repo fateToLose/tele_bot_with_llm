@@ -14,6 +14,7 @@ This repo is a personal project to build up to expand knowledge with API and LLM
 ##  WIP
 - [&check;] Add databases
 - [&check;] Admin menu to allow for statistc (users, API cost, access control, etc)
+- [&cross;] Add additional LLM models (Perplexity Sonar & Google Gemini)
 - [&cross;] Add websearch function via GoogleSearch API
 - [&cross;] Add basic agentic workflow & tools (multi-steps on thinking process & utilising available tools)
 - [&cross;] Further enhancement
