@@ -14,11 +14,14 @@ This repo is a personal project to build up to expand knowledge with API and LLM
 ##  WIP
 - [&check;] Add databases
 - [&check;] Admin menu to allow for statistc (users, API cost, access control, etc)
-- [&cross;] Websearch function via GoogleSearch API
+- [&cross;] Add websearch function via GoogleSearch API
+- [&cross;] Add basic agentic workflow & tools (multi-steps on thinking process & utilising available tools)
 - [&cross;] Further enhancement
 
 ## Setup
-- Create .env file and store the your LLM & Telegram API key
+- Prepare all relevant LLM API Keys 
 - Create telegram bot via Telegram @BotFather
+- Create .env file and store the your LLM & Telegram API keys *(take reference from example.env)*
 - Change configuration in config file
+    - Depending on what model you want to run, you can add or remove from *(config.py -> MODEL_CHOICE)*
 - Run main.py
