@@ -40,7 +40,7 @@ UPDATE users SET
 WHERE user_id = ?;
 
 
---name: register_msg
+-- name: register_msg
 INSERT INTO messages
     (user_id, provider, model_id, input_tokens, output_tokens, query_cost)
 VALUES (?, ?, ?, ?, ?, ?);
