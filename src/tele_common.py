@@ -23,6 +23,7 @@ api_keys: dict[str, str | None] = {
     "Claude": os.getenv("CLA_API_KEY"),
     "Deepseek": os.getenv("DS_API_KEY"),
     "ChatGPT": os.getenv("GPT_API_KEY"),
+    "Perplexity": os.getenv("PEX_API_KEY"),
 }
 
 db_users = {}

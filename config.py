@@ -45,6 +45,16 @@ MODEL_CHOICES: dict = {
             "id": "gpt-4o-mini",
         },
     ],
+    "Perplexity": [
+        {
+            "name": "Sonar Deep Research",
+            "id": "sonar-deep-research",
+        },
+        {
+            "name": "Sonar",
+            "id": "sonar",
+        },
+    ],
 }
 
 
@@ -72,5 +82,15 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
     "gpt-4o-mini": {
         "input_cost": 0.00000015,
         "output_cost": 0.0000006,
+    },
+    "sonar-deep-research": {
+        "input_cost": 0.0000005,
+        "output_cost": 0.000002,
+        "search_cost": 0.005,
+    },
+    "sonar": {
+        "input_cost": 0.000001,
+        "output_cost": 0.000001,
+        "search_cost": 0.005,
     },
 }

@@ -90,6 +90,29 @@ class ChatGPTModel(BaseModelLLM):
             return f"Error communicating with ChatGPT: {str(e)}"
 
 
+class PerplexityModel(BaseModelLLM):
+    def __init__(self, api_key: str, model_id: str, model_name: str) -> None:
+        super().__init__(api_key, model_id, model_name)
+
+    async def query(self, message: str) -> str | None:
+        try:
+            headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+
+            data = {
+                "model": self.model_id,
+                "max_tokens": MAX_TOKENS,
+                "messages": [{"role": "user", "content": message}],
+            }
+
+            response = requests.post("https://api.perplexity.ai/chat/completions", headers=headers, json=data)
+
+            response_json = response.json()
+            return response_json["choices"][0]["message"]["content"]
+        except Exception as e:
+            logging.error(f"Error querying Perplexity API: {e}")
+            return f"Error communicating with Perplexity: {str(e)}"
+
+
 class AllModels:
     def __init__(self, api_keys: dict[str, str], given_models: dict[str, list[dict[str, str]]]) -> None:
         self.api_keys: dict[str, str] = api_keys
@@ -109,9 +132,14 @@ class AllModels:
             for sub_model in self.given_models["Deepseek"]
         ]
 
-        ChatGPT_models = [
+        chatGPT_models = [
             ChatGPTModel(self.api_keys["ChatGPT"], sub_model["id"], sub_model["name"])
             for sub_model in self.given_models["ChatGPT"]
+        ]
+
+        perplexity_models: list[PerplexityModel] = [
+            PerplexityModel(self.api_keys["Perplexity"], sub_model["id"], sub_model["name"])
+            for sub_model in self.given_models["Perplexity"]
         ]
 
         # Register all models
@@ -121,8 +149,11 @@ class AllModels:
         for model in deepseek_models:
             self.register_model("Deepseek", model)
 
-        for model in ChatGPT_models:
+        for model in chatGPT_models:
             self.register_model("ChatGPT", model)
+
+        for model in perplexity_models:
+            self.register_model("Perplexity", model)
 
     def register_model(self, provider: str, model: BaseModelLLM):
         model_key = f"{provider}_{model.model_id}"
