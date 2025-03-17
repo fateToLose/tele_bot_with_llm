@@ -97,7 +97,8 @@ FROM messages as m
 LEFT JOIN users as u ON
     u.user_id = m.user_id
 WHERE created_at >= date('now') - ?
-GROUP BY date(m.created_at);
+GROUP BY date(m.created_at)
+ORDER BY date(m.created_at) DESC;
 
 
 -- name: get_recent_users
